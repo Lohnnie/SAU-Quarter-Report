@@ -376,16 +376,12 @@
     </div>
     <div class="survey-mark">
       DATA AS OF <b>Q2 2026</b><br>
-      COVERAGE: <b>12 SUBMARKETS</b> · CLASS A / B<br>
-      TOTALS &amp; "–" PRESERVED AS FILED
+      COVERAGE: <b>12 SUBMARKETS</b> · CLASS A / B
     </div>
   </header>
 
   <div class="toolbar no-print">
     <button type="button" id="printBtn" class="tool-btn">Print / Save PDF</button>
-    <label class="tool-btn upload-control" for="uploadInput">Upload Data (.xlsx)</label>
-    <input type="file" id="uploadInput" accept=".xlsx" style="display:none;">
-    <span id="uploadStatus" class="upload-status"></span>
   </div>
   <div class="upload-status no-print" id="dataSourceStatus" style="margin:-8px 0 12px;"></div>
 
@@ -573,7 +569,6 @@ document.addEventListener('click', (e)=>{
 
 document.getElementById('printBtn').addEventListener('click', ()=>window.print());
 
-document.getElementById('uploadInput').addEventListener('change', handleUpload);
 
 /* ============================================================
    RENDER FUNCTIONS
@@ -907,34 +902,6 @@ function workbookToData(wb){
     absorption: sheetToRows(wb,'Absorption'),
     rates: sheetToRows(wb,'Rates')
   };
-}
-
-function handleUpload(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const statusEl = document.getElementById('uploadStatus');
-  statusEl.textContent = 'Reading ' + file.name + '…';
-  statusEl.className = 'upload-status';
-
-  const reader = new FileReader();
-  reader.onload = (evt)=>{
-    try{
-      const wb = XLSX.read(evt.target.result, {type:'array'});
-      const newData = workbookToData(wb);
-      loadWorkbook(newData);
-      statusEl.textContent = 'Loaded ' + file.name + ' — all charts and tables updated.';
-      statusEl.className = 'upload-status ok';
-      setDataSourceStatus('Manually uploaded: ' + file.name, 'ok');
-    }catch(err){
-      statusEl.textContent = 'Could not read file: ' + err.message;
-      statusEl.className = 'upload-status err';
-    }
-  };
-  reader.onerror = ()=>{
-    statusEl.textContent = 'Error reading file.';
-    statusEl.className = 'upload-status err';
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 /* ============================================================
