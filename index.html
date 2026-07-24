@@ -639,8 +639,9 @@ function renderMicroTable(){
   document.getElementById('microHead').innerHTML = microHeaders.map(h=>`<th>${h.replace(/\n/g,' ')}</th>`).join('');
   let lastMicroSub = null;
   document.getElementById('microBody').innerHTML = RAW.micro.slice(1).map(r=>{
-    let sm = r[0] || lastMicroSub;
-    if(r[0]) lastMicroSub = r[0];
+    const hasMicroSub = r[0] !== null && r[0] !== undefined && String(r[0]).trim() !== '' && r[0] !== '-';
+    let sm = hasMicroSub ? r[0] : lastMicroSub;
+    if(hasMicroSub) lastMicroSub = r[0];
     const isTotalMarket = r[1] === 'Total Market';
     const cells = r.map((v,i)=>{
       if(i===0) return sm;
@@ -849,7 +850,10 @@ function loadWorkbook(rawData){
   // Matrix
   matrixRows = RAW.matrix.slice(1).map(r=>({submarket:r[0], class:r[1], inv:r[2], absorp:r[3], dvac:r[4], svac:r[5], tvac:r[6], rent:r[7], compl:r[8], dev:r[9]}));
   let lastSm = null;
-  matrixRows.forEach(r=>{ if(r.submarket){lastSm=r.submarket;} else {r.submarket=lastSm;} });
+  matrixRows.forEach(r=>{
+    const hasSubmarket = r.submarket !== null && r.submarket !== undefined && String(r.submarket).trim() !== '' && r.submarket !== '-';
+    if(hasSubmarket){ lastSm=r.submarket; } else { r.submarket=lastSm; }
+  });
 
   // Absorption
   const absRaw = RAW.absorption;
@@ -894,7 +898,7 @@ function loadWorkbook(rawData){
    ============================================================ */
 function sheetToRows(wb, name){
   if(!wb.Sheets[name]) return null;
-  return XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval:'-', raw:true});
+  return XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval:null, raw:true});
 }
 
 const REQUIRED_SHEETS = ['Matrix','DIM','Micro Markets','Absorption','Rates'];
