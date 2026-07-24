@@ -335,20 +335,31 @@
   /* ---------- PRINT ---------- */
   .no-print{display:inline-flex;}
   @media print{
-    @page{ margin: 0.5in; size: landscape; }
+    *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+    @page{ margin: 0.4in; size: landscape; }
     body{background:#fff;}
     .wrap{max-width:none;padding:0;}
-    .no-print, .upload-control{display:none !important;}
+    .no-print, .upload-control, .toolbar, #econStatus{display:none !important;}
     .filter-bar{display:none !important;}
     .dropdown-panel{display:none !important;}
-    .kpi-strip, .panel, table, .section-label{break-inside:avoid;}
-    .section-label{break-before:page;}
-    .section-label:first-of-type{break-before:auto;}
-    .panel-row{break-inside:avoid;}
+    header::before{background:linear-gradient(90deg, var(--coral) 0%, var(--coral) 55%, var(--ink) 55%, var(--ink) 100%) !important;}
+    .kpi-strip{break-inside:avoid;}
+    .kpi{border:1px solid var(--line);}
+    .panel, .panel-row{break-inside:avoid;}
+    table{break-inside:auto;}
+    tr{break-inside:avoid;}
+    .section-label{break-after:avoid; break-inside:avoid; margin-top:22px;}
     .table-scroll{max-height:none !important;overflow:visible !important;}
     thead th{position:static;}
     .panel{border:1px solid #999;}
     .chart-box canvas{max-width:100%;}
+    .vac-fill{background:var(--coral) !important;}
+    .class-badge.A{background:var(--coral-dim) !important;color:#1c3f66 !important;}
+    .class-badge.B{background:var(--steel-dim) !important;color:#5c6470 !important;}
+    .total-row{background:#f3f1ec !important;}
+    .market-total{background:var(--ink) !important;color:var(--paper) !important;}
+    .market-total td{color:var(--paper) !important;}
+    thead th{background:var(--ink) !important;color:var(--paper) !important;}
     a[href]::after{content:'';}
   }
 </style>
@@ -463,13 +474,8 @@
 
   <!-- BLS / CENSUS -->
   <div class="section-label no-print-break"><div class="tag">05 — Regional Economic Indicators</div><div class="rule"></div></div>
-  <div class="section-note">Static snapshot — BLS Local Area Unemployment Statistics (seasonally adj., Jan 2026) and Census ACS 1-Year Estimates (2024), for the four metros tracked in the companion BLS/Census dashboard.</div>
-
-  <div class="toolbar no-print" style="margin-top:0;">
-    <input type="text" id="netlifyBaseUrl" placeholder="https://your-site.netlify.app (blank = same site as this file)" style="min-width:360px;">
-    <button type="button" id="loadEconBtn" class="tool-btn">Retry Live BLS/Census Data</button>
-    <span id="econStatus" class="upload-status"></span>
-  </div>
+  <div class="section-note">Pulled live from your BLS/Census Netlify functions on page load. No hardcoded values — if the API call fails, this section stays empty rather than showing placeholder numbers.</div>
+  <div class="section-note" id="econStatus" style="color:var(--ink-soft);">Connecting to BLS/Census functions…</div>
 
   <div class="kpi-strip" id="econKpiStrip"></div>
 
@@ -938,20 +944,16 @@ loadWorkbook({"matrix": [["Submarket", "Class", "Inventory\n(RSF)", "Total Net A
 
 /* ============================================================
    REGIONAL ECONOMIC INDICATORS (BLS + CENSUS)
-   Loads a static snapshot by default; "Load Live Data" calls your
-   deployed Netlify functions (bls.js / census.js), which only accept
-   TWO markets per call (market1/market2), so we make two paired
-   calls per source and merge into four metros.
+   No static/hardcoded numbers. This section is empty until
+   loadLiveEconData() successfully calls your deployed Netlify
+   functions (bls.js / census.js). They only accept TWO markets
+   per call (market1/market2), so we make two paired calls per
+   source and merge into four metros.
    ============================================================ */
 const METRO_PALETTE = {'Austin':'#1c3f66','Dallas-Fort Worth':'#2e7d6b','Houston':'#c98a2c','San Antonio':'#7a4a6b'};
 const MARKET_KEY_TO_NAME = {austin:'Austin', dallas:'Dallas-Fort Worth', houston:'Houston', sanAntonio:'San Antonio'};
 
-let ECON = [
-  {metro:'Austin', unemployment:3.7, income:99897, degree:52.3, population:2550637},
-  {metro:'Dallas-Fort Worth', unemployment:4.1, income:92733, degree:39.4, population:8344032},
-  {metro:'Houston', unemployment:4.6, income:81417, degree:37.3, population:7796182},
-  {metro:'San Antonio', unemployment:4.2, income:78112, degree:32.8, population:2763006},
-];
+let ECON = [];
 
 function renderEconKpiStrip(kpis){
   document.getElementById('econKpiStrip').innerHTML = kpis.map(k=>`
@@ -963,11 +965,11 @@ function renderEconKpiStrip(kpis){
 }
 
 renderEconKpiStrip([
-  {label:'Austin Unemployment', value:'3.7%', sub:'BLS LAUS, Jan 2026, SA (static)'},
-  {label:'Austin Nonfarm Payrolls', value:'1.38M', sub:'jobs, FRED, Dec 2025, SA (static)'},
-  {label:'Austin Median HH Income', value:'$99,897', sub:'Census ACS 2024 1-yr (static)'},
-  {label:'Austin Bachelor\u2019s+', value:'52.3%', sub:'age 25+, Census ACS 2024 (static)'},
-  {label:'Austin Metro Population', value:'2.55M', sub:'Census ACS 2024 1-yr (static)'},
+  {label:'Austin Unemployment', value:'—', sub:'awaiting live API call'},
+  {label:'Austin Nonfarm Payrolls', value:'—', sub:'awaiting live API call'},
+  {label:'Austin Median HH Income', value:'—', sub:'awaiting live API call'},
+  {label:'Austin Bachelor\u2019s+', value:'—', sub:'awaiting live API call'},
+  {label:'Austin Metro Population', value:'—', sub:'awaiting live API call'},
 ]);
 
 let econChartInstances = {};
@@ -1001,7 +1003,7 @@ function renderEconCharts(){
   econBarChart('degreeChart', 'degree', v=>v.toFixed(1)+'%', 'Bachelor\u2019s or Higher (%)');
   econBarChart('popChart', 'population', v=>(v/1e6).toFixed(2)+'M', 'Population');
 }
-renderEconCharts();
+// No initial render call — charts stay empty until live data arrives.
 
 function latestSeriesValue(series){
   if(!series || !series.length) return null;
@@ -1023,11 +1025,8 @@ async function fetchJsonOrThrow(url){
 }
 
 async function loadLiveEconData(){
+  const base = ''; // always relative — assumes this file is deployed on the same Netlify site as the functions
   const statusEl = document.getElementById('econStatus');
-  const raw = document.getElementById('netlifyBaseUrl').value.trim();
-  const base = raw ? raw.replace(/\/$/,'') : '';
-  statusEl.textContent = 'Fetching live BLS + Census data\u2026';
-  statusEl.className = 'upload-status';
 
   try{
     const [blsAD, blsHS, censusAD, censusHS] = await Promise.all([
@@ -1072,16 +1071,15 @@ async function loadLiveEconData(){
       {label:'Austin Metro Population', value:(austin.population/1e6).toFixed(2)+'M', sub:'Census ACS, live'},
     ]);
 
-    statusEl.textContent = 'Live data loaded ' + new Date().toLocaleTimeString() + '.';
-    statusEl.className = 'upload-status ok';
+    statusEl.textContent = 'Live — loaded ' + new Date().toLocaleString() + '.';
+    statusEl.style.color = '#1f7a52';
   }catch(err){
-    statusEl.textContent = 'Could not load live data: ' + err.message + '. Showing static snapshot.';
-    statusEl.className = 'upload-status err';
+    statusEl.textContent = 'Not connected: ' + err.message + '. No data shown above (nothing hardcoded).';
+    statusEl.style.color = '#b3423b';
   }
 }
 
-document.getElementById('loadEconBtn').addEventListener('click', loadLiveEconData);
-loadLiveEconData(); // auto-attempt on load — falls back to the static snapshot above if it fails
+loadLiveEconData(); // fires automatically; no UI, no action needed — fails quietly if unreachable
 </script>
 </body>
 </html>
