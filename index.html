@@ -23,7 +23,7 @@
     --red:#1c3f66;
 
     --unit:12px;          /* base spacing unit — everything derives from this */
-    --panel-h: 340px;      /* standardized panel body height */
+    --panel-h: 400px;      /* standardized panel body height */
     --radius: 2px;
   }
 
@@ -36,7 +36,7 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  .wrap{max-width:1180px;margin:0 auto;padding:calc(var(--unit)*3) calc(var(--unit)*2) 80px;}
+  .wrap{max-width:1440px;margin:0 auto;padding:calc(var(--unit)*3) calc(var(--unit)*2) 80px;}
 
   /* ---------- HEADER ---------- */
   header{
@@ -348,7 +348,8 @@
     .panel, .panel-row{break-inside:avoid;}
     table{break-inside:auto;}
     tr{break-inside:avoid;}
-    .section-label{break-after:avoid; break-inside:avoid; margin-top:22px;}
+    .section-label{break-after:avoid; break-inside:avoid; margin-top:22px; break-before:page;}
+    .section-label:first-of-type{break-before:auto; margin-top:0;}
     .table-scroll{max-height:none !important;overflow:visible !important;}
     thead th{position:static;}
     .panel{border:1px solid #999;}
@@ -391,7 +392,6 @@
 
   <!-- OVERVIEW CHARTS -->
   <div class="section-label"><div class="tag">01 — Market Shape</div><div class="rule"></div></div>
-  <div class="section-note">Class A vs. Class B, by submarket. "Austin Market Totals" excluded from rankings below so it doesn't compete with its own components.</div>
 
   <div class="panel-row wide">
     <div class="panel">
@@ -417,7 +417,6 @@
 
   <!-- TIME SERIES -->
   <div class="section-label"><div class="tag">02 — Class A Time Series</div><div class="rule"></div></div>
-  <div class="section-note">Defaults to Market. Add or remove submarkets below — both charts stay in sync.</div>
 
   <div class="filter-bar" style="border-bottom:1px solid var(--line); position:relative;">
     <label>Submarkets</label>
@@ -440,7 +439,6 @@
 
   <!-- MATRIX TABLE -->
   <div class="section-label"><div class="tag">03 — Full Matrix</div><div class="rule"></div></div>
-  <div class="section-note">Every row from the Matrix sheet.</div>
 
   <div class="filter-bar">
     <label>Submarket</label>
@@ -464,7 +462,6 @@
 
   <!-- MICRO MARKETS -->
   <div class="section-label"><div class="tag">04 — Micro Markets</div><div class="rule"></div></div>
-  <div class="section-note">CBD, East, Southwest and Northwest broken into tiers/corridors — as filed on the Micro Markets sheet.</div>
   <div class="table-wrap">
     <table id="microTable">
       <thead><tr id="microHead"></tr></thead>
@@ -473,8 +470,7 @@
   </div>
 
   <!-- BLS / CENSUS -->
-  <div class="section-label no-print-break"><div class="tag">05 — Regional Economic Indicators</div><div class="rule"></div></div>
-  <div class="section-note">Pulled live from your BLS/Census Netlify functions on page load. No hardcoded values — if the API call fails, this section stays empty rather than showing placeholder numbers.</div>
+  <div class="section-label"><div class="tag">05 — Regional Economic Indicators</div><div class="rule"></div></div>
   <div class="section-note" id="econStatus" style="color:var(--ink-soft);">Connecting to BLS/Census functions…</div>
 
   <div class="kpi-strip" id="econKpiStrip"></div>
@@ -500,7 +496,6 @@
       <div class="p-body"><div class="chart-box"><canvas id="popChart"></canvas></div></div>
     </div>
   </div>
-  <div class="section-note" style="margin-top:10px;">Sources: bls.gov/regions/southwest (LAUS, metro unemployment) · Census Bureau ACS 2024 1-Year Estimates via data.census.gov.</div>
 
   <footer>
     <span>Rendered from Data.xlsx — Matrix, DIM &amp; Micro Markets sheets</span>
