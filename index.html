@@ -382,6 +382,8 @@
 
   <div class="toolbar no-print">
     <button type="button" id="printBtn" class="tool-btn">Print / Save PDF</button>
+    <button type="button" id="uploadWorkbookBtn" class="tool-btn">Load Excel Data</button>
+    <input type="file" id="workbookFileInput" accept=".xlsx,.xls" style="display:none;">
   </div>
   <div class="upload-status no-print" id="dataSourceStatus" style="margin:-8px 0 12px;"></div>
 
@@ -910,6 +912,34 @@ function workbookToData(wb){
     rates: sheetToRows(wb,'Rates')
   };
 }
+
+/* ============================================================
+   MANUAL EXCEL UPLOAD
+   Lets local previews load a workbook even when browser security
+   prevents file:// pages from fetching ./data/data.xlsx.
+   ============================================================ */
+const uploadWorkbookBtn = document.getElementById('uploadWorkbookBtn');
+const workbookFileInput = document.getElementById('workbookFileInput');
+
+uploadWorkbookBtn.addEventListener('click', ()=>workbookFileInput.click());
+
+workbookFileInput.addEventListener('change', async (event)=>{
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+
+  try{
+    setDataSourceStatus('Loading ' + file.name + '…', null);
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const newData = workbookToData(wb);
+    loadWorkbook(newData);
+    setDataSourceStatus('Loaded from Excel: ' + file.name, 'ok');
+  }catch(err){
+    setDataSourceStatus('Could not load ' + file.name + ': ' + err.message, 'err');
+  }finally{
+    event.target.value = '';
+  }
+});
 
 /* ============================================================
    AUTO-LOAD FROM THE REPO'S COMMITTED WORKBOOK
