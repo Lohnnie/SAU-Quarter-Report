@@ -654,6 +654,9 @@ function renderMicroTable(){
 
 function renderKpiStrip(){
   const marketRow = matrixRows.find(r=>r.submarket==='Austin Market Totals' && r.class==='Total');
+  if(!marketRow){
+    throw new Error('Matrix sheet has no "Austin Market Totals" / "Total" row — check the file matches the expected format.');
+  }
   const kpis = [
     {label:'Total Inventory', value: (marketRow.inv/1e6).toFixed(1)+'M SF', sub:'RSF, current snapshot'},
     {label:'Total Vacancy', value: fmtPct(marketRow.tvac).replace(/<[^>]+>/g,''), sub:'direct + sublet', cls: marketRow.tvac>0.2?'down':'up'},
@@ -837,6 +840,10 @@ function populateSubmarketDropdown(){
 function loadWorkbook(rawData){
   RAW = rawData;
 
+  if(!RAW || !Array.isArray(RAW.matrix) || RAW.matrix.length < 2){
+    throw new Error('Matrix sheet is empty or unreadable — the file may be corrupted (check it wasn\u2019t altered by Git\u2019s line-ending handling) or in the wrong format.');
+  }
+
   // Matrix
   matrixRows = RAW.matrix.slice(1).map(r=>({submarket:r[0], class:r[1], inv:r[2], absorp:r[3], dvac:r[4], svac:r[5], tvac:r[6], rent:r[7], compl:r[8], dev:r[9]}));
   let lastSm = null;
@@ -911,7 +918,7 @@ function workbookToData(wb){
    committed — the embedded snapshot below stays in place.
    Either way, the status line says exactly which one is live.
    ============================================================ */
-const REPO_WORKBOOK_PATH = 'data/Data.xlsx'; // relative — resolves under wherever index.html is served from
+const REPO_WORKBOOK_PATH = 'data/data.xlsx'; // relative, lowercase — matches the deployed filename exactly
 
 function setDataSourceStatus(text, kind){
   const el = document.getElementById('dataSourceStatus');
