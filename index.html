@@ -911,7 +911,7 @@ function workbookToData(wb){
    committed — the embedded snapshot below stays in place.
    Either way, the status line says exactly which one is live.
    ============================================================ */
-const REPO_WORKBOOK_PATH = '/data/Data.xlsx';
+const REPO_WORKBOOK_PATH = 'data/Data.xlsx'; // relative — resolves under wherever index.html is served from
 
 function setDataSourceStatus(text, kind){
   const el = document.getElementById('dataSourceStatus');
