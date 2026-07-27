@@ -325,44 +325,165 @@
     text-transform:uppercase;letter-spacing:.03em;
   }
 
-  @media (max-width:900px){
+  /* SCREEN ONLY. Without the `screen` keyword this block also matched the
+     print layout (7.0in = 672px < 900px) and silently overrode --panel-h
+     and the KPI grid. That was the bug. */
+  @media screen and (max-width:900px){
     .kpi-strip{grid-template-columns:repeat(2,1fr);}
     .panel-row, .panel-row.wide{grid-template-columns:1fr;}
     h1{font-size:32px;}
     :root{--panel-h:300px;}
   }
 
-  /* ---------- PRINT ---------- */
+  /* ---------- PRINT ENGINE ----------
+     All print layout lives on html.printing so that the on-screen
+     "Print View" toggle and the real print pipeline share ONE ruleset.
+     JS adds .printing on beforeprint / matchMedia('print') / toggle. */
   .no-print{display:inline-flex;}
+
   @media print{
-    *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-    @page{ margin: 0.4in; size: landscape; }
-    body{background:#fff;}
-    .wrap{max-width:none;padding:0;}
-    .no-print, .upload-control, .toolbar, #econStatus{display:none !important;}
-    .filter-bar{display:none !important;}
-    .dropdown-panel{display:none !important;}
-    header::before{background:linear-gradient(90deg, var(--coral) 0%, var(--coral) 55%, var(--ink) 55%, var(--ink) 100%) !important;}
-    .kpi-strip{break-inside:avoid;}
-    .kpi{border:1px solid var(--line);}
-    .panel, .panel-row{break-inside:avoid;}
-    table{break-inside:auto;}
-    tr{break-inside:avoid;}
-    .section-label{break-after:avoid; break-inside:avoid; margin-top:22px;}
-    .section-label:first-of-type{margin-top:0;}
-    .table-scroll{max-height:none !important;overflow:visible !important;}
-    thead th{position:static;}
-    .panel{border:1px solid #999;}
-    .chart-box canvas{max-width:100%;}
-    .vac-fill{background:var(--coral) !important;}
-    .class-badge.A{background:var(--coral-dim) !important;color:#1c3f66 !important;}
-    .class-badge.B{background:var(--steel-dim) !important;color:#5c6470 !important;}
-    .total-row{background:#f3f1ec !important;}
-    .market-total{background:var(--ink) !important;color:var(--paper) !important;}
-    .market-total td{color:var(--paper) !important;}
-    thead th{background:var(--ink) !important;color:var(--paper) !important;}
-    a[href]::after{content:'';}
+    /* Sized to the RICOH Pro C5400S. Its spec sheet gives a lead-edge margin
+       of 5.0 +/- 1.5 mm on plain stock and a trail edge of 5.0 +/- 2.0 mm, so
+       worst case is ~7 mm = 0.28in. 0.3in clears that with nothing to spare
+       and nothing wasted. Do not go below this without a test print. */
+    @page{ size: letter portrait; margin: 0.3in 0.3in 0.35in; }
   }
+
+  html.printing{ background:#fff; }
+  html.printing body{ background:#fff; }
+  html.printing *{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  /* --- page geometry: 8.5in - 0.9in margins = 7.6in live width --- */
+  /* 8.5in sheet - 0.6in of side margin = 7.9in live width */
+  html.printing .wrap{ max-width:7.9in; width:7.9in; margin:0 auto; padding:0; }
+  /* 11in - 0.65in vertical margin = 10.35in live height.
+     --panel-h is only a starting value now: sections are pinned to pages and
+     the JS below grows or shrinks each page's panels to fill its sheet. */
+  html.printing{ --panel-h: 2.8in; --unit:9px; }
+
+  /* --- chrome we never print --- */
+  html.printing .no-print,
+  html.printing .toolbar,
+  html.printing .upload-control,
+  html.printing #econStatus,
+  html.printing .filter-bar,
+  html.printing .dropdown-panel{ display:none !important; }
+
+  /* --- header --- */
+  html.printing header{ padding:0 0 10px; margin-bottom:12px; }
+  html.printing h1{ font-size:30px; }
+  html.printing header::before{
+    background:linear-gradient(90deg,var(--coral) 0%,var(--coral) 55%,var(--ink) 55%,var(--ink) 100%) !important;
+  }
+
+  /* --- TWO-UP.
+     Single-column was the stretching: a 7.0in x 1.5in box is a 4.7:1
+     letterbox, and Chart.js fills whatever box it is given. Two columns at
+     3.4in x 2.6in is 1.3:1 — close to the on-screen proportion the charts
+     were designed for. --- */
+  html.printing .panel-row,
+  html.printing .panel-row.wide{
+    display:grid;
+    grid-template-columns:1fr 1fr;      /* equal, so aspect is predictable */
+    gap:calc(var(--unit)*1.5);
+    margin-bottom:calc(var(--unit)*1.5);
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  /* a row holding a single panel stays full width */
+  html.printing .panel-row:has(> .panel:only-child){ grid-template-columns:1fr; }
+  html.printing .panel{
+    border:1px solid #999;
+    margin-bottom:0;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  html.printing .panel .p-body{ height:var(--panel-h); padding:calc(var(--unit)*1.1); }
+  html.printing .panel .p-head{ padding:6px 10px; }
+  html.printing .panel .p-head h3{ font-size:12.5px; }
+  html.printing .panel .p-head .p-meta{ font-size:9px; }
+  html.printing .section-label{ margin-bottom:calc(var(--unit)*1.4); }
+  html.printing .vac-row{ grid-template-columns:84px 1fr 44px; gap:8px; font-size:9.5px; }
+  /* 13 rows in a fixed box overflowed and clipped "Domain" off the bottom.
+     Spread them instead of letting them run past the edge. */
+  html.printing .vac-rows{
+    height:100%; display:flex; flex-direction:column;
+    justify-content:space-between; overflow:hidden;
+  }
+  html.printing .p-body{ overflow:hidden; }
+  html.printing .chart-box{ position:relative; width:100%; height:100%; }
+  /* NOTE: no max-width on canvas. That rule is what stretched the charts.
+     Chart.js owns the box; CSS must not fight it. */
+  html.printing .chart-box canvas{ width:100% !important; height:100% !important; }
+
+  /* --- BUG THAT CAUSED THE BLANK FIRST PAGE ---
+     `.section-label:first-of-type` is TYPE-based, not class-based: it means
+     "a .section-label that is the first <div> among its siblings". The first
+     <div> in .wrap is the toolbar, so that selector matched nothing and
+     EVERY section label — including 01 — forced a page break. Hence a page 1
+     containing only the header and the KPI strip.
+     Page breaks are now decided by the JS paginator below, not by CSS. */
+  html.printing .section-label{
+    break-inside:avoid;
+    margin-top:0; margin-bottom:calc(var(--unit)*1.2);
+  }
+
+  /* --- explicit page containers built at print time --- */
+  html.printing .print-sheet{ break-after:page; page-break-after:always; }
+  html.printing .print-sheet:last-child{ break-after:auto; page-break-after:auto; }
+  html.printing .panel-row:empty{ display:none; margin:0; }
+
+  html.printing .kpi-strip{
+    break-inside:avoid; gap:1px; margin-top:calc(var(--unit)*1.2);
+    grid-template-columns:repeat(5,1fr) !important;   /* never inherit the mobile grid */
+    margin-bottom:calc(var(--unit)*1.5);
+  }
+  html.printing .kpi{ border:1px solid var(--line); }
+  html.printing .kpi .k-value{ font-size:17px; }
+  html.printing .kpi{ padding:6px 8px; }
+  html.printing .kpi .k-label{ font-size:9px; }
+  html.printing .kpi .k-sub{ font-size:8.5px; }
+
+  /* --- tables --- */
+  html.printing .table-scroll{ max-height:none !important; overflow:visible !important; }
+  /* A table whose min-content width exceeds the page makes the browser
+     shrink the ENTIRE document to fit, which is what produces giant side
+     margins. table-layout:fixed makes overflow structurally impossible. */
+  html.printing .table-wrap{ width:100%; max-width:100%; overflow:hidden; }
+  html.printing table{
+    break-inside:auto; font-size:8px;
+    table-layout:fixed; width:100%; max-width:100%;
+  }
+  html.printing th, html.printing td{ overflow:hidden; word-break:break-word; }
+  /* matrix + micro: give the two label columns room, split the rest evenly */
+  html.printing #matrixTable th:nth-child(1),
+  html.printing #microTable  th:nth-child(1){ width:13%; }
+  html.printing #matrixTable th:nth-child(2),
+  html.printing #microTable  th:nth-child(2){ width:7%; }
+  html.printing #largestSubleasesTable th:nth-child(1){ width:16%; }
+  html.printing #largestSubleasesTable th:nth-child(2){ width:34%; }
+  html.printing #largestSubleasesTable th:nth-child(3){ width:30%; }
+  /* last line of defence: nothing escapes a sheet */
+  html.printing .print-sheet{ overflow:hidden; max-width:100%; }
+  html.printing body{ width:auto; min-width:0; }
+  html.printing td, html.printing th{ padding:3px 4px; }
+  html.printing tr{ break-inside:avoid; page-break-inside:avoid; }
+  html.printing thead{ display:table-header-group; }
+  html.printing thead th{
+    position:static;
+    background:var(--ink) !important; color:var(--paper) !important;
+  }
+  html.printing .total-row{ background:#f3f1ec !important; }
+  html.printing .market-total{ background:var(--ink) !important; color:var(--paper) !important; }
+  html.printing .market-total td{ color:var(--paper) !important; }
+  html.printing .vac-fill{ background:var(--coral) !important; }
+  html.printing .class-badge.A{ background:var(--coral-dim) !important; color:#1c3f66 !important; }
+  html.printing .class-badge.B{ background:var(--steel-dim) !important; color:#5c6470 !important; }
+  html.printing a[href]::after{ content:''; }
+
 </style>
 </head>
 <body>
@@ -381,9 +502,9 @@
   </header>
 
   <div class="toolbar no-print">
-    <button type="button" id="printBtn" class="tool-btn">Print / Save PDF</button>
     <span id="dataSourceStatus" class="data-status-dot" title="Loading data…" aria-label="Loading data"></span>
   </div>
+
 
   <div class="kpi-strip" id="kpiStrip"></div>
 
@@ -471,6 +592,15 @@
 
   <div class="kpi-strip" id="subletKpiStrip"></div>
 
+  <div class="filter-bar sublease-panels" id="subleaseFilterBar" style="border-bottom:1px solid var(--line); position:relative;">
+    <label>Submarkets</label>
+    <div class="dropdown-check" id="subleaseDropdown">
+      <button type="button" id="subleaseDropdownBtn">All submarkets <span class="dd-arrow">&#9662;</span></button>
+      <div class="dropdown-panel" id="subleaseDropdownPanel"></div>
+    </div>
+    <button type="button" id="subleaseAllBtn" class="tool-btn" style="margin-left:8px;">Reset to all</button>
+  </div>
+
   <div class="panel-row wide sublease-panels">
     <div class="panel">
       <div class="p-head"><h3>Total Available Sublet</h3><div class="p-meta">RSF, BY QUARTER</div></div>
@@ -529,7 +659,7 @@
   </div>
 
   <footer>
-    <span>Rendered from data.xlsx — market, micro market &amp; sublease sheets</span>
+    <span>Rendered from data.xlsx — market, micro market &amp; sublease sheets · build <b id="buildTag">2026-07-27.06</b></span>
     <span id="rowCount"></span>
   </footer>
 
@@ -577,6 +707,24 @@ let selectedSubmarkets = ['Market'];
 let absByEntity = {}, ratesByEntity = {}, absQuarters = [], rateQuarters = [];
 
 let scatterChartInst, absorptionChartInst, dimChartInst, absChart, rateChart;
+
+/* ---- SECTION 05 SUBMARKET FILTER ----
+   Its own state, independent of the section 02 series dropdown.
+   null = not yet built; a Set = the live selection. Defaults to ALL. */
+let SUBLEASE_OPTIONS = [];
+let subleaseSelected = null;
+const SCOPE_ALIAS = {'FNW':'Far Northwest'};
+function scopeName(n){ return SCOPE_ALIAS[String(n).trim()] || String(n).trim(); }
+function inSublease(n){
+  if(!subleaseSelected) return true;
+  const v = scopeName(n);
+  if(v === 'Total' || v === 'Austin Market Totals') return true;
+  return subleaseSelected.has(v);
+}
+function scopeSublease(rows, key){
+  key = key || 'submarket';
+  return rows.filter(r => inSublease(r[key]));
+}
 let SUBLEASE = null;
 let subletTrendChartInst, subletSubmarketChartInst, bigBlocksChartInst, subletSizeChartInst;
 
@@ -597,13 +745,27 @@ document.getElementById('submarketDropdownBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('submarketDropdownPanel').classList.toggle('open');
 });
+document.getElementById('subleaseDropdownBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('subleaseDropdownPanel').classList.toggle('open');
+});
+document.getElementById('subleaseAllBtn').addEventListener('click', ()=>{
+  subleaseSelected = new Set(SUBLEASE_OPTIONS);
+  renderSubleaseDropdown();
+  renderSubletSubmarketChart();
+  renderBigBlocksChart();
+  renderLargestSubleases();
+});
 document.addEventListener('click', (e)=>{
   if(!document.getElementById('submarketDropdown').contains(e.target)){
     document.getElementById('submarketDropdownPanel').classList.remove('open');
   }
+  const sd = document.getElementById('subleaseDropdown');
+  if(sd && !sd.contains(e.target)){
+    document.getElementById('subleaseDropdownPanel').classList.remove('open');
+  }
 });
 
-document.getElementById('printBtn').addEventListener('click', ()=>window.print());
 
 
 /* ============================================================
@@ -986,12 +1148,50 @@ function renderSublease(){
   panels.forEach(p => p.style.display = show ? '' : 'none');
   if(!show) return;
 
+  buildSubleaseOptions();
   renderSubletKpis();
   renderSubletTrendChart();
   renderSubletSubmarketChart();
   renderBigBlocksChart();
   renderSubletSizeChart();
   renderLargestSubleases();
+}
+
+function buildSubleaseOptions(){
+  const seen = [];
+  const push = n => { const v = scopeName(n); if(v && v!=='Total' && seen.indexOf(v)===-1) seen.push(v); };
+  (SUBLEASE.bySubmarket||[]).forEach(r=>push(r.submarket));
+  (SUBLEASE.blocks||[]).forEach(r=>push(r.submarket));
+  (SUBLEASE.largest||[]).forEach(r=>push(r.submarket));
+  SUBLEASE_OPTIONS = seen.sort();
+  subleaseSelected = new Set(SUBLEASE_OPTIONS);   // default: everything on
+  renderSubleaseDropdown();
+}
+
+function renderSubleaseDropdown(){
+  const btn = document.getElementById('subleaseDropdownBtn');
+  const panel = document.getElementById('subleaseDropdownPanel');
+  if(!btn || !panel) return;
+  const n = subleaseSelected ? subleaseSelected.size : 0;
+  btn.innerHTML = (n === SUBLEASE_OPTIONS.length ? 'All submarkets'
+                  : n === 0 ? 'None selected'
+                  : n === 1 ? Array.from(subleaseSelected)[0]
+                  : n + ' selected') + ' <span class="dd-arrow">&#9662;</span>';
+  panel.innerHTML = SUBLEASE_OPTIONS.map(name=>`
+    <label>
+      <input type="checkbox" value="${name}" ${subleaseSelected.has(name)?'checked':''}>
+      <span>${name}</span>
+    </label>`).join('');
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      subleaseSelected = new Set(
+        Array.from(panel.querySelectorAll('input:checked')).map(i=>i.value));
+      renderSubleaseDropdown();
+      renderSubletSubmarketChart();
+      renderBigBlocksChart();
+      renderLargestSubleases();
+    });
+  });
 }
 
 function renderSubletKpis(){
@@ -1050,7 +1250,7 @@ function renderSubletTrendChart(){
 
 function renderSubletSubmarketChart(){
   if(subletSubmarketChartInst) subletSubmarketChartInst.destroy();
-  const rows = SUBLEASE.bySubmarket;
+  const rows = scopeSublease(SUBLEASE.bySubmarket);
   const total = rows.reduce((s,r)=>s+r.sf, 0);
   subletSubmarketChartInst = new Chart(document.getElementById('subletSubmarketChart'), {
     type:'doughnut',
@@ -1074,7 +1274,7 @@ function renderSubletSubmarketChart(){
 
 function renderBigBlocksChart(){
   if(bigBlocksChartInst) bigBlocksChartInst.destroy();
-  const rows = SUBLEASE.blocks;
+  const rows = scopeSublease(SUBLEASE.blocks);
   bigBlocksChartInst = new Chart(document.getElementById('bigBlocksChart'), {
     type:'bar',
     data:{
@@ -1129,7 +1329,7 @@ function renderSubletSizeChart(){
 }
 
 function renderLargestSubleases(){
-  document.getElementById('largestSubleasesBody').innerHTML = SUBLEASE.largest.map(r=>`
+  document.getElementById('largestSubleasesBody').innerHTML = scopeSublease(SUBLEASE.largest).map(r=>`
     <tr>
       <td>${r.submarket}</td>
       <td>${r.building}</td>
@@ -1382,6 +1582,249 @@ async function loadLiveEconData(){
 }
 
 loadLiveEconData(); // fires automatically; no UI, no action needed — fails quietly if unreachable
+
+/* ============================================================
+   PRINT ENGINE
+   Three problems this solves:
+     1. blurry charts  -> devicePixelRatio bumped to 3 and re-rasterized
+     2. stretched      -> charts resized AFTER the print layout is applied
+     3. bad pagination -> single-column panels + page-per-section
+   ============================================================ */
+(function(){
+  const html = document.documentElement;
+  let printing = false;
+
+  const allCharts = () =>
+    Array.from(document.querySelectorAll('canvas'))
+         .map(c => Chart.getChart(c))
+         .filter(Boolean);
+
+  function enter(){
+    if(printing) return;
+    printing = true;
+    html.classList.add('printing');
+    shrinkCharts(true);
+
+    void document.body.offsetHeight;            // force layout before measuring
+    try{ paginate(); }
+    catch(e){ console.error('[print] PAGINATION FAILED — pages will flow freely:', e); }
+    if(!sheets.length){
+      console.error('[print] no sheets were built; check FLOW selectors');
+    } else {
+      console.info('[print] build ' + BUILD + ' built ' + sheets.length + ' sheets:');
+      sheets.forEach(function(sh, i){
+        var what = Array.from(sh.children).map(function(c){
+          if(c.classList.contains('section-label')) return 'LABEL(' + c.textContent.trim().slice(0,14) + ')';
+          if(c.tagName === 'HEADER') return 'header';
+          if(c.tagName === 'FOOTER') return 'footer';
+          if(c.classList.contains('kpi-strip')) return 'kpis';
+          if(c.classList.contains('panel-row')) return 'row';
+          if(c.classList.contains('table-wrap')) return 'table';
+          return c.className || c.tagName;
+        }).join(', ');
+        console.info('  page ' + (i+1) + ': ' + what);
+      });
+    }
+    void document.body.offsetHeight;
+
+    allCharts().forEach(c=>{
+      c.options.devicePixelRatio = 3;           // the actual fix for blur
+      c.options.animation = false;
+      c.options.responsive = true;
+      c.options.maintainAspectRatio = false;
+      c.resize();
+      c.update('none');
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     DETERMINISTIC PAGINATION
+
+     Browser break heuristics were the source of every layout surprise so
+     far: a rule that silently matched nothing, a phone breakpoint that
+     silently matched everything. So we stop asking the browser to decide.
+
+     At print time we measure each block at its real print size and pack
+     the blocks into explicit .print-sheet containers ourselves. Same input
+     always produces the same page breaks, on any browser, at any zoom.
+     ------------------------------------------------------------------ */
+  // Pack whole rows: a two-up row must not be split across a page break.
+  const FLOW = 'header, .kpi-strip, .section-label, .panel-row, .table-wrap, footer';
+  let moved = [];      // [{node, parent, next}] so exit() can put it all back
+  let sheets = [];
+
+  function pageHeightPx(){
+    const probe = document.createElement('div');
+    // 11in sheet - 0.3in top - 0.35in bottom = 10.35in of live height.
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:10.35in;';
+    document.body.appendChild(probe);
+    const h = probe.offsetHeight;
+    probe.remove();
+    return h * 0.985;                 // 1.5% slack for printer rounding
+  }
+
+  function blockHeight(el){
+    const cs = getComputedStyle(el);
+    return el.offsetHeight
+         + parseFloat(cs.marginTop  || 0)
+         + parseFloat(cs.marginBottom || 0);
+  }
+
+  /* Sections are PINNED to pages. Greedy packing gave correct but arbitrary
+     breaks; this gives the same five pages every time:
+       page 1 = header + KPIs + section 01 + section 02
+       page 2 = 03   page 3 = 04   page 4 = 05   page 5 = 06
+     Section 01+02 is six charts on one page and section 06 is four, so a
+     single panel height cannot serve both. After placing, autofit() measures
+     the slack left on each sheet and resizes only that sheet's panels. */
+  const BUILD = '2026-07-27.06';
+  console.info('[print] engine loaded, build ' + BUILD);
+  const PAGE_PLAN = [[0, 1, 2], [3], [4], [5], [6]];
+  const MIN_BODY = 130;   // ~1.35in — below this the axis labels collapse
+  const MAX_BODY = 330;   // ~3.45in — beyond this charts go portrait
+
+  function paginate(){
+    const wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    const items = Array.from(wrap.querySelectorAll(FLOW))
+      .filter(el => el.offsetParent !== null || el.tagName === 'HEADER');
+    if(!items.length) return;
+
+    // Walk in document order and stamp each block with its section number.
+    // 0 = the header/KPI chrome that precedes section 01.
+    let cur = 0;
+    const tagged = items.map(el => {
+      if(el.classList.contains('section-label')){
+        const m = (el.textContent || '').match(/(\d{1,2})/);
+        if(m) cur = parseInt(m[1], 10);
+        else console.error('[print] could not read a section number from:',
+                           (el.textContent || '').trim());
+      }
+      return {el: el, sec: cur};
+    });
+
+    PAGE_PLAN.forEach(secs => {
+      const group = tagged.filter(t => secs.indexOf(t.sec) !== -1);
+      if(!group.length) return;
+      const sheet = document.createElement('div');
+      sheet.className = 'print-sheet';
+      wrap.appendChild(sheet);
+      sheets.push(sheet);
+      group.forEach(t => {
+        moved.push({node: t.el, parent: t.el.parentNode, next: t.el.nextSibling});
+        sheet.appendChild(t.el);
+      });
+    });
+
+    autofit(pageHeightPx());
+  }
+
+  function autofit(PAGE){
+    sheets.forEach(sheet => {
+      const rows = Array.from(sheet.querySelectorAll('.panel-row'));
+      if(!rows.length) return;                 // table-only pages need no fit
+
+      const used  = Array.from(sheet.children).reduce((t, c) => t + blockHeight(c), 0);
+      const bodies = Array.from(sheet.querySelectorAll('.p-body'));
+      if(!bodies.length) return;
+
+      const cur   = bodies[0].offsetHeight;
+      const delta = (PAGE - used) / rows.length;
+      const next  = Math.max(MIN_BODY, Math.min(MAX_BODY, cur + delta));
+
+      bodies.forEach(b => { b.style.height = next + 'px'; });
+    });
+  }
+
+  function unpaginate(){
+    // restore in reverse so each nextSibling reference is still valid
+    for(let i = moved.length - 1; i >= 0; i--){
+      const m = moved[i];
+      m.parent.insertBefore(m.node, m.next);
+    }
+    moved = [];
+    sheets.forEach(sh => sh.remove());
+    sheets = [];
+    document.querySelectorAll('.p-body').forEach(b => { b.style.height = ''; });
+  }
+
+  /* Panels are ~2in tall on paper vs ~4in on screen. Chart.js does not
+     scale type or point size with the box, so text collides and dots
+     merge unless we shrink them explicitly. Originals are stashed so the
+     screen view is restored byte-for-byte on afterprint. */
+  const STASH = new WeakMap();
+  function shrinkCharts(on){
+    if(on) Chart.defaults.font.size = 8.5;
+    else   Chart.defaults.font.size = 11;
+
+    allCharts().forEach(c=>{
+      if(on){
+        if(!STASH.has(c)){
+          STASH.set(c, {
+            legend: JSON.parse(JSON.stringify(
+              (c.options.plugins && c.options.plugins.legend) || {})),
+            pts: c.data.datasets.map(d=>({r:d.pointRadius, w:d.borderWidth}))
+          });
+        }
+        const lg = c.options.plugins && c.options.plugins.legend;
+        if(lg){
+          lg.labels = lg.labels || {};
+          lg.labels.boxWidth  = 7;
+          lg.labels.boxHeight = 7;
+          lg.labels.padding   = 5;
+          lg.labels.font      = {size:8};
+        }
+        c.data.datasets.forEach(d=>{
+          if(typeof d.pointRadius === 'number') d.pointRadius = Math.max(1.2, d.pointRadius*0.55);
+          if(typeof d.borderWidth === 'number') d.borderWidth = Math.max(1, d.borderWidth*0.75);
+        });
+      } else {
+        const st = STASH.get(c);
+        if(st){
+          if(c.options.plugins) c.options.plugins.legend = st.legend;
+          c.data.datasets.forEach((d,i)=>{
+            if(st.pts[i]){
+              if(st.pts[i].r !== undefined) d.pointRadius = st.pts[i].r;
+              if(st.pts[i].w !== undefined) d.borderWidth = st.pts[i].w;
+            }
+          });
+          STASH.delete(c);
+        }
+      }
+    });
+  }
+
+  function exit(){
+    if(!printing) return;
+    printing = false;
+    try{ unpaginate(); }catch(e){ console.error('[print] unpaginate failed:', e); }
+    html.classList.remove('printing');
+    shrinkCharts(false);
+    void document.body.offsetHeight;
+    allCharts().forEach(c=>{
+      c.options.devicePixelRatio = window.devicePixelRatio || 1;
+      c.options.animation = undefined;
+      c.resize();
+      c.update('none');
+    });
+  }
+
+  // --- trigger 1: browser Ctrl+P / Cmd+P (Chrome, Edge, Firefox) ---
+  // All work here is synchronous, so the browser finishes the 3x re-raster
+  // before it snapshots the page. Do not make anything in enter() async.
+  window.addEventListener('beforeprint', enter);
+  window.addEventListener('afterprint',  exit);
+
+  // --- trigger 1b: Safari, which does not fire beforeprint ---
+  if(window.matchMedia){
+    const mq = window.matchMedia('print');
+    const h = e => { e.matches ? enter() : exit(); };
+    mq.addEventListener ? mq.addEventListener('change', h) : mq.addListener(h);
+  }
+
+})();
+
 </script>
 </body>
 </html>
