@@ -228,9 +228,9 @@
     cursor:pointer;border-radius:var(--radius);display:inline-flex;align-items:center;
   }
   .tool-btn:hover{background:var(--ink);color:var(--paper);}
-  .upload-status{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:12px;color:var(--ink-soft);}
-  .upload-status.err{color:#b3423b;}
-  .upload-status.ok{color:#1f7a52;}
+  .data-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:#b8b8b8;cursor:help;flex:0 0 auto;}
+  .data-status-dot.ok{background:#1f7a52;}
+  .data-status-dot.err{background:#b3423b;}
 
   /* ---------- SUBMARKET CHECKBOX DROPDOWN ---------- */
   .dropdown-check{position:relative;}
@@ -384,8 +384,8 @@
     <button type="button" id="printBtn" class="tool-btn">Print / Save PDF</button>
     <button type="button" id="uploadWorkbookBtn" class="tool-btn">Load Excel Data</button>
     <input type="file" id="workbookFileInput" accept=".xlsx,.xls" style="display:none;">
+    <span id="dataSourceStatus" class="data-status-dot" title="Loading data…" aria-label="Loading data"></span>
   </div>
-  <div class="upload-status no-print" id="dataSourceStatus" style="margin:-8px 0 12px;"></div>
 
   <div class="kpi-strip" id="kpiStrip"></div>
 
@@ -1234,8 +1234,11 @@ const REPO_WORKBOOK_PATH = 'data/data.xlsx'; // relative, lowercase — matches 
 function setDataSourceStatus(text, kind){
   const el = document.getElementById('dataSourceStatus');
   if(!el) return;
-  el.textContent = text;
-  el.style.color = kind==='ok' ? '#1f7a52' : kind==='err' ? '#b3423b' : 'var(--ink-soft)';
+  el.classList.remove('ok','err');
+  if(kind === 'ok' || kind === 'err') el.classList.add(kind);
+  // The dot is the signal; the full message lives in the tooltip so nothing is lost.
+  el.title = text;
+  el.setAttribute('aria-label', text);
 }
 
 async function loadRepoWorkbook(){
