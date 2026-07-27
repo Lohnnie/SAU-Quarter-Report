@@ -374,7 +374,7 @@
 
   /* --- header --- */
   html.printing header{ padding:0 0 10px; margin-bottom:12px; }
-  html.printing h1{ font-size:30px; }
+  html.printing h1{ font-size:34px; }
   html.printing header::before{
     background:linear-gradient(90deg,var(--coral) 0%,var(--coral) 55%,var(--ink) 55%,var(--ink) 100%) !important;
   }
@@ -403,16 +403,20 @@
   }
   html.printing .panel .p-body{ height:var(--panel-h); padding:calc(var(--unit)*1.1); }
   html.printing .panel .p-head{ padding:6px 10px; }
-  html.printing .panel .p-head h3{ font-size:12.5px; }
-  html.printing .panel .p-head .p-meta{ font-size:9px; }
+  html.printing .panel .p-head h3{ font-size:14px; }
+  html.printing .panel .p-head .p-meta{ font-size:10px; }
   html.printing .section-label{ margin-bottom:calc(var(--unit)*1.4); }
-  html.printing .vac-row{ grid-template-columns:84px 1fr 44px; gap:8px; font-size:9.5px; }
-  /* 13 rows in a fixed box overflowed and clipped "Domain" off the bottom.
-     Spread them instead of letting them run past the edge. */
+  /* space-between still clipped when 13 rows were taller than the box.
+     flex:1 1 0 with min-height:0 makes every row share the height exactly,
+     so the count of submarkets can change and nothing is ever cut off. */
   html.printing .vac-rows{
-    height:100%; display:flex; flex-direction:column;
-    justify-content:space-between; overflow:hidden;
+    height:100%; display:flex; flex-direction:column; gap:0;
   }
+  html.printing .vac-row{
+    flex:1 1 0; min-height:0; align-items:center;
+    grid-template-columns:96px 1fr 50px; gap:8px; font-size:11px;
+  }
+  html.printing .vac-track{ height:11px; }
   html.printing .p-body{ overflow:hidden; }
   html.printing .chart-box{ position:relative; width:100%; height:100%; }
   /* NOTE: no max-width on canvas. That rule is what stretched the charts.
@@ -442,10 +446,10 @@
     margin-bottom:calc(var(--unit)*1.5);
   }
   html.printing .kpi{ border:1px solid var(--line); }
-  html.printing .kpi .k-value{ font-size:17px; }
-  html.printing .kpi{ padding:6px 8px; }
-  html.printing .kpi .k-label{ font-size:9px; }
-  html.printing .kpi .k-sub{ font-size:8.5px; }
+  html.printing .kpi .k-value{ font-size:21px; }
+  html.printing .kpi{ padding:7px 9px; }
+  html.printing .kpi .k-label{ font-size:10px; }
+  html.printing .kpi .k-sub{ font-size:9.5px; }
 
   /* --- tables --- */
   html.printing .table-scroll{ max-height:none !important; overflow:visible !important; }
@@ -454,22 +458,31 @@
      margins. table-layout:fixed makes overflow structurally impossible. */
   html.printing .table-wrap{ width:100%; max-width:100%; overflow:hidden; }
   html.printing table{
-    break-inside:auto; font-size:8px;
+    break-inside:auto; font-size:8.5px;
     table-layout:fixed; width:100%; max-width:100%;
   }
-  html.printing th, html.printing td{ overflow:hidden; word-break:break-word; }
+  html.printing th, html.printing td{ overflow:hidden; }
   /* matrix + micro: give the two label columns room, split the rest evenly */
-  html.printing #matrixTable th:nth-child(1),
-  html.printing #microTable  th:nth-child(1){ width:13%; }
-  html.printing #matrixTable th:nth-child(2),
-  html.printing #microTable  th:nth-child(2){ width:7%; }
+  html.printing #matrixTable th:nth-child(1){ width:13%; }
+  html.printing #matrixTable th:nth-child(2){ width:7%; }
+  /* micro market names are real words ("Total Market", "South Mopac"), so
+     column 2 needs far more room than the matrix's A/B/Total badge */
+  html.printing #microTable th:nth-child(1){ width:12%; }
+  html.printing #microTable th:nth-child(2){ width:11%; }
   html.printing #largestSubleasesTable th:nth-child(1){ width:16%; }
   html.printing #largestSubleasesTable th:nth-child(2){ width:34%; }
   html.printing #largestSubleasesTable th:nth-child(3){ width:30%; }
   /* last line of defence: nothing escapes a sheet */
   html.printing .print-sheet{ overflow:hidden; max-width:100%; }
   html.printing body{ width:auto; min-width:0; }
-  html.printing td, html.printing th{ padding:3px 4px; }
+  html.printing td, html.printing th{ padding:4px 5px; }
+  /* `word-break:break-word` was splitting inside words and, worse, inside
+     numbers -- "12,534,59 / 2". Never break a token; only wrap at spaces. */
+  html.printing td, html.printing th{
+    word-break:normal; overflow-wrap:normal; hyphens:none;
+  }
+  /* every column except the two label columns is numeric: never wrap it */
+  html.printing td:not(:first-child):not(:nth-child(2)){ white-space:nowrap; }
   html.printing tr{ break-inside:avoid; page-break-inside:avoid; }
   html.printing thead{ display:table-header-group; }
   html.printing thead th{
@@ -659,7 +672,7 @@
   </div>
 
   <footer>
-    <span>Rendered from data.xlsx — market, micro market &amp; sublease sheets · build <b id="buildTag">2026-07-27.06</b></span>
+    <span>Rendered from data.xlsx — market, micro market &amp; sublease sheets · build <b id="buildTag">2026-07-27.10</b></span>
     <span id="rowCount"></span>
   </footer>
 
@@ -1627,14 +1640,8 @@ loadLiveEconData(); // fires automatically; no UI, no action needed — fails qu
     }
     void document.body.offsetHeight;
 
-    allCharts().forEach(c=>{
-      c.options.devicePixelRatio = 3;           // the actual fix for blur
-      c.options.animation = false;
-      c.options.responsive = true;
-      c.options.maintainAspectRatio = false;
-      c.resize();
-      c.update('none');
-    });
+    // resize + update only. No writes into c.options -- see note above.
+    allCharts().forEach(function(c){ c.resize(); c.update('none'); });
   }
 
   /* ------------------------------------------------------------------
@@ -1677,7 +1684,7 @@ loadLiveEconData(); // fires automatically; no UI, no action needed — fails qu
      Section 01+02 is six charts on one page and section 06 is four, so a
      single panel height cannot serve both. After placing, autofit() measures
      the slack left on each sheet and resizes only that sheet's panels. */
-  const BUILD = '2026-07-27.06';
+  const BUILD = '2026-07-27.10';
   console.info('[print] engine loaded, build ' + BUILD);
   const PAGE_PLAN = [[0, 1, 2], [3], [4], [5], [6]];
   const MIN_BODY = 130;   // ~1.35in — below this the axis labels collapse
@@ -1717,6 +1724,20 @@ loadLiveEconData(); // fires automatically; no UI, no action needed — fails qu
       });
     });
 
+    // Anything a sheet did not claim would otherwise print in a random
+    // position — after the footer, before the header, wherever it happened
+    // to sit. Hide it and say so, loudly.
+    const orphans = [];
+    Array.from(wrap.children).forEach(function(c){
+      if(c.classList.contains('print-sheet')) return;
+      if(getComputedStyle(c).display === 'none') return;
+      orphans.push(c.className || c.tagName);
+      c.setAttribute('data-print-orphan', '1');
+      c.style.display = 'none';
+    });
+    if(orphans.length)
+      console.error('[print] ORPHANS hidden (not claimed by any page): ', orphans);
+
     autofit(pageHeightPx());
   }
 
@@ -1747,47 +1768,68 @@ loadLiveEconData(); // fires automatically; no UI, no action needed — fails qu
     sheets.forEach(sh => sh.remove());
     sheets = [];
     document.querySelectorAll('.p-body').forEach(b => { b.style.height = ''; });
+    document.querySelectorAll('[data-print-orphan]').forEach(function(c){
+      c.style.display = '';
+      c.removeAttribute('data-print-orphan');
+    });
   }
 
   /* Panels are ~2in tall on paper vs ~4in on screen. Chart.js does not
      scale type or point size with the box, so text collides and dots
      merge unless we shrink them explicitly. Originals are stashed so the
      screen view is restored byte-for-byte on afterprint. */
+  /* THE CRASH THAT WAS HERE
+     chart.options is a Chart.js proxy whose setter delegates to a parent
+     scope, which delegates back. Writing an OBJECT into it -- a legend, or
+     a {size:8} font descriptor -- bounces between the two set handlers until
+     the stack blows: "Maximum call stack size exceeded" in chart.umd.min.js.
+     Rule from here on: never write into chart.options. Global knobs live on
+     Chart.defaults; per-chart we touch only plain numbers on data.datasets,
+     which are ordinary objects with no proxy behind them. */
+  const D0 = {
+    font: Chart.defaults.font.size,
+    dpr:  Chart.defaults.devicePixelRatio,
+    anim: Chart.defaults.animation,
+    boxW: Chart.defaults.plugins.legend.labels.boxWidth,
+    boxH: Chart.defaults.plugins.legend.labels.boxHeight,
+    pad:  Chart.defaults.plugins.legend.labels.padding
+  };
   const STASH = new WeakMap();
-  function shrinkCharts(on){
-    if(on) Chart.defaults.font.size = 8.5;
-    else   Chart.defaults.font.size = 11;
 
-    allCharts().forEach(c=>{
+  function shrinkCharts(on){
+    const L = Chart.defaults.plugins.legend.labels;
+    if(on){
+      Chart.defaults.font.size = 10.5;   // was 8.5 -- printing at 130% read
+                                         // better, so bake the size in here
+                                         // rather than scaling the page
+      Chart.defaults.devicePixelRatio = 3;      // the fix for print blur
+      Chart.defaults.animation = false;
+      L.boxWidth = 9; L.boxHeight = 9; L.padding = 6;
+    } else {
+      Chart.defaults.font.size = D0.font;
+      Chart.defaults.devicePixelRatio = D0.dpr;
+      Chart.defaults.animation = D0.anim;
+      L.boxWidth = D0.boxW; L.boxHeight = D0.boxH; L.padding = D0.pad;
+    }
+
+    allCharts().forEach(function(c){
       if(on){
         if(!STASH.has(c)){
-          STASH.set(c, {
-            legend: JSON.parse(JSON.stringify(
-              (c.options.plugins && c.options.plugins.legend) || {})),
-            pts: c.data.datasets.map(d=>({r:d.pointRadius, w:d.borderWidth}))
-          });
+          STASH.set(c, c.data.datasets.map(function(d){
+            return {r: d.pointRadius, w: d.borderWidth};
+          }));
         }
-        const lg = c.options.plugins && c.options.plugins.legend;
-        if(lg){
-          lg.labels = lg.labels || {};
-          lg.labels.boxWidth  = 7;
-          lg.labels.boxHeight = 7;
-          lg.labels.padding   = 5;
-          lg.labels.font      = {size:8};
-        }
-        c.data.datasets.forEach(d=>{
-          if(typeof d.pointRadius === 'number') d.pointRadius = Math.max(1.2, d.pointRadius*0.55);
-          if(typeof d.borderWidth === 'number') d.borderWidth = Math.max(1, d.borderWidth*0.75);
+        c.data.datasets.forEach(function(d){
+          if(typeof d.pointRadius === 'number') d.pointRadius = Math.max(1.8, d.pointRadius * 0.75);
+          if(typeof d.borderWidth === 'number') d.borderWidth = Math.max(1.2, d.borderWidth * 0.9);
         });
       } else {
         const st = STASH.get(c);
         if(st){
-          if(c.options.plugins) c.options.plugins.legend = st.legend;
-          c.data.datasets.forEach((d,i)=>{
-            if(st.pts[i]){
-              if(st.pts[i].r !== undefined) d.pointRadius = st.pts[i].r;
-              if(st.pts[i].w !== undefined) d.borderWidth = st.pts[i].w;
-            }
+          c.data.datasets.forEach(function(d, i){
+            if(!st[i]) return;
+            if(st[i].r !== undefined) d.pointRadius = st[i].r;
+            if(st[i].w !== undefined) d.borderWidth = st[i].w;
           });
           STASH.delete(c);
         }
@@ -1802,17 +1844,33 @@ loadLiveEconData(); // fires automatically; no UI, no action needed — fails qu
     html.classList.remove('printing');
     shrinkCharts(false);
     void document.body.offsetHeight;
-    allCharts().forEach(c=>{
-      c.options.devicePixelRatio = window.devicePixelRatio || 1;
-      c.options.animation = undefined;
-      c.resize();
-      c.update('none');
-    });
+    allCharts().forEach(function(c){ c.resize(); c.update('none'); });
   }
 
   // --- trigger 1: browser Ctrl+P / Cmd+P (Chrome, Edge, Firefox) ---
   // All work here is synchronous, so the browser finishes the 3x re-raster
   // before it snapshots the page. Do not make anything in enter() async.
+  /* Run printDiag() in the console: applies print mode, prints the page
+     plan, reverts, and returns the plan as one string you can paste. */
+  window.printDiag = function(){
+    enter();
+    const plan = sheets.map(function(sh, i){
+      return 'p' + (i+1) + '[' + Array.from(sh.children).map(function(c){
+        if(c.tagName === 'HEADER') return 'header';
+        if(c.tagName === 'FOOTER') return 'footer';
+        if(c.classList.contains('section-label')) return c.textContent.trim().slice(0,2);
+        if(c.classList.contains('kpi-strip')) return 'kpi';
+        if(c.classList.contains('panel-row')) return 'row';
+        if(c.classList.contains('table-wrap')) return 'tbl';
+        return '?' + (c.className || c.tagName);
+      }).join(' ') + ']';
+    }).join('  ');
+    const out = 'build ' + BUILD + '  ' + sheets.length + ' sheets  ' + plan;
+    exit();
+    console.log(out);
+    return out;
+  };
+
   window.addEventListener('beforeprint', enter);
   window.addEventListener('afterprint',  exit);
 
